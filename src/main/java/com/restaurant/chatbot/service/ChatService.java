@@ -1,17 +1,14 @@
 package com.restaurant.chatbot.service;
 
 import com.restaurant.chatbot.model.Message;
-import com.restaurant.chatbot.model.Menu;
 import com.restaurant.chatbot.model.Order;
 import com.restaurant.chatbot.repository.MessageRepository;
-import com.restaurant.chatbot.repository.MenuRepository;
 import com.restaurant.chatbot.repository.OrderRepository;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 @Service
@@ -20,42 +17,50 @@ public class ChatService {
 
     private final OrderRepository orderRepository;
     private final MessageRepository messageRepository;
-    private final MenuRepository menuRepository; // 🔥 NEW
+
+    // 🔥 STATIC MENU (RULE BASED)
+    private static final Map<String, String> menuMap = new HashMap<>();
+
+    static {
+        menuMap.put("burger", "500");
+        menuMap.put("pizza", "800");
+        menuMap.put("fries", "300");
+        menuMap.put("drink", "150");
+    }
 
     public String getReply(String userMessage) {
 
         String lower = userMessage.toLowerCase();
         String reply = "";
 
-        // 🔥 GET MENU FROM DB (OCR DATA)
-        List<Menu> menus = menuRepository.findAll();
-
-        Map<String, String> menuMap = new HashMap<>();
-
-        for (Menu menu : menus) {
-
-            // 🔥 STEP 7: PARSING OCR TEXT
-            String[] lines = menu.getContent().split("\n");
-
-            for (String line : lines) {
-                if (line.contains("-")) {
-                    String[] parts = line.split("-");
-                    menuMap.put(parts[0].trim().toLowerCase(),
-                            parts[1].trim());
-                }
-            }
-        }
-
-        // 🔥 STEP 6: CHAT LOGIC
-
-
+        // 🔥 SHOW MENU
         if (lower.contains("menu")) {
             reply = "📋 Menu:\n";
             for (String item : menuMap.keySet()) {
-                reply += item + " - " + menuMap.get(item) + "\n";
+                reply += "🍽 " + item + " - " + menuMap.get(item) + "\n";
+            }
+        }
+
+        // 🔥 PRICE QUERY
+        else if (lower.contains("price")) {
+
+            boolean found = false;
+
+            for (String item : menuMap.keySet()) {
+                if (lower.contains(item)) {
+                    reply = "💰 " + item + " price is: " + menuMap.get(item);
+                    found = true;
+                    break;
+                }
             }
 
-        } else {
+            if (!found) {
+                reply = "❌ Item not found in menu";
+            }
+        }
+
+        // 🔥 ORDER LOGIC
+        else {
 
             boolean found = false;
 
@@ -65,7 +70,6 @@ public class ChatService {
 
                     found = true;
 
-                    // 🔥 ORDER SAVE (same as your old logic)
                     Order order = new Order();
                     order.setItems(item);
                     order.setStatus("PLACED");
@@ -81,7 +85,7 @@ public class ChatService {
             }
         }
 
-        // 🔥 SAVE MESSAGE (same as before)
+        // 🔥 SAVE MESSAGE
         Message msg = new Message();
         msg.setUserMessage(userMessage);
         msg.setBotReply(reply);
